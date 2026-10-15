@@ -238,7 +238,8 @@
     };
   }
 
-  function extractUrls(text) {
+  function extractUrls(text, options) {
+    const opts = options || {};
     const source = String(text == null ? '' : text);
     const work = source.split('');
     const found = [];
@@ -291,7 +292,11 @@
 
     /* (d) Bare domains such as "example.com/verify" with no scheme at all.
            Skipped when the match is part of an email address or a file path,
-           so "someone@example.com" is not reported as a link. */
+           so "someone@example.com" is not reported as a link. Also skipped
+           entirely for header text, where bare host names appear in Received
+           and Message-ID lines and are not links the visitor can follow. */
+    if (opts.bareDomains === false) return found;
+
     const bareText = work.join('');
     while ((m = BARE_DOMAIN_RE.exec(bareText)) !== null) {
       const before = bareText.charAt(m.index - 1);
@@ -562,7 +567,7 @@
     return false;
   }
 
-  function runTextRules(text) {
+  function runTextRules(texts) {
     const findings = [];
     P.TEXT_RULES.forEach(function (rule) {
       const maxEvidence = rule.maxEvidence || 5;
@@ -571,18 +576,20 @@
       let total = 0;
 
       rule.patterns.forEach(function (pattern) {
-        const re = new RegExp(pattern.source, pattern.flags.indexOf('g') === -1 ? pattern.flags + 'g' : pattern.flags);
-        let m;
-        while ((m = re.exec(text)) !== null) {
-          if (m[0] === '') { re.lastIndex++; continue; }
-          const snippet = contextAround(text, m.index, m[0].length);
-          if (guardBlocks(rule, snippet)) continue;
-          total++;
-          if (quotes.length < maxEvidence && quotes.indexOf(m[0].trim()) === -1) {
-            quotes.push(m[0].trim());
-            snippets.push({ value: m[0].trim(), context: snippet, kind: 'text' });
+        texts.forEach(function (text) {
+          const re = new RegExp(pattern.source, pattern.flags.indexOf('g') === -1 ? pattern.flags + 'g' : pattern.flags);
+          let m;
+          while ((m = re.exec(text)) !== null) {
+            if (m[0] === '') { re.lastIndex++; continue; }
+            const snippet = contextAround(text, m.index, m[0].length);
+            if (guardBlocks(rule, snippet)) continue;
+            total++;
+            if (quotes.length < maxEvidence && quotes.indexOf(m[0].trim()) === -1) {
+              quotes.push(m[0].trim());
+              snippets.push({ value: m[0].trim(), context: snippet, kind: 'text' });
+            }
           }
-        }
+        });
       });
 
       if (!total) return;
@@ -713,6 +720,21 @@
     };
   }
 
+  /* Links from the body and links from the headers (a "List-Unsubscribe"
+     address, for instance) are combined into one list, without duplicates. */
+  function mergeUrlLists(primary, secondary) {
+    const seen = {};
+    const out = [];
+    primary.concat(secondary).forEach(function (u) {
+      const key = u.href.toLowerCase() + '|' + String(u.anchorText || '').toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      if (secondary.indexOf(u) !== -1 && u.source === 'text') u.source = 'header';
+      out.push(u);
+    });
+    return out;
+  }
+
   /* Merge the same file seen twice - once named in the body, once declared in
      the headers - so the visitor is told about one attachment, not two. */
   function mergeAttachments(fromText, fromHeaders) {
@@ -802,11 +824,18 @@
     const normalised = normalise(combined);
 
     const headers = parseHeaders(headerText);
-    const urls = extractUrls(combined);
+    const urls = mergeUrlLists(extractUrls(body), extractUrls(headerText, { bareDomains: false }));
     const attachments = mergeAttachments(extractAttachmentsFromText(body), headers.attachments);
     const facts = buildFacts(headers, urls);
 
-    const findings = runTextRules(normalised)
+    /* Text rules run against two views of the message. Real emails are wrapped
+       across lines, so "the attached" and "invoice" can end up on different
+       lines and a phrase search would miss them. The flattened copy joins the
+       lines back up; the original copy is kept so that patterns anchored to
+       the start of a line ("Dear Customer,") still work. */
+    const flattened = normalised.replace(/\n+/g, ' ');
+
+    const findings = runTextRules([normalised, flattened])
       .concat(runStructuralRules(combined, normalised))
       .concat(runUrlRules(urls))
       .concat(runAttachmentRules(attachments))

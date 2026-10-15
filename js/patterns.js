@@ -470,7 +470,7 @@
       maxEvidence: 2,
       patterns: [
         /^\s*(?:dear|hello|hi|greetings)[, ]+(?:customer|client|user|valued (?:customer|client|user)|member|account holder|applicant|sir|madam|sir\/madam|sir or madam|all)\b/im,
-        /^\s*(?:dear|hello|hi|greetings)\s*[,!.]\s*$/im,
+        /^\s*(?:dear|hello|greetings)\s*[,!.]\s*$/im,
         /\bvalued customer\b/i,
         /\bdear (?:account|email) (?:holder|user|owner)\b/i
       ]
