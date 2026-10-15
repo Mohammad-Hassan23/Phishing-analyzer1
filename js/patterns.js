@@ -343,7 +343,9 @@
         /\b(?:payment|bank|banking) details (?:have|has) changed\b/i,
         /\bupdate (?:our|the|my) (?:payment|bank|banking|remittance) (?:details|information)\b/i,
         /\b(?:remit|pay|transfer) (?:the )?(?:funds|payment|money|balance) (?:to|into) (?:the )?(?:account|new account)\b/i,
-        /\bour bank account (?:has |details have )?(?:changed|been updated)\b/i
+        /\bour bank account (?:has |details have )?(?:changed|been updated)\b/i,
+        /\b(?:bank|banking|payment|remittance|account|wire|payout) details (?:have|has|had) (?:been )?(?:changed|updated|amended)\b/i,
+        /\b(?:bank|banking|payment|account) details (?:are|is) (?:below|as follows|attached)\b/i
       ],
       guards: [
         /\b(?:call|telephone|phone|verify) (?:us|me|before|to confirm)\b/i
@@ -388,7 +390,11 @@
         /\bpayment (?:is )?(?:now )?(?:due|overdue)\b/i,
         /\binvoice\s*#?\s*\d{3,}/i,
         /\bremittance advice\b/i,
-        /\bpurchase order (?:number|no|#)\b/i
+        /\bpurchase order (?:number|no|#)\b/i,
+        /\bthe attached (?:invoice|statement|bill|remittance)\b/i,
+        /\b(?:invoice|statement|bill|remittance)\b[^.\n]{0,25}\b(?:attached|enclosed)\b/i,
+        /\b(?:small|minor|outstanding) (?:fee|charge|payment|amount)\b/i,
+        /\b(?:redelivery|handling|customs|clearance|release|processing|administrative) fee\b/i
       ]
     }
   );
@@ -446,7 +452,9 @@
         /\b(?:do not|don'?t|please don'?t) (?:call|telephone|phone|mention)\b[^.\n]{0,40}\b(?:confirm|anyone|anybody|colleagues)\b/i,
         /\bkeep this (?:between us|confidential|quiet)\b/i,
         /\bi (?:cannot|can'?t) (?:talk|discuss|speak)\b[^.\n]{0,40}\b(?:now|right now|at the moment|about this)\b/i,
-        /\bunavailable (?:in meetings|for calls|by phone)\b[^.\n]{0,60}\b(?:email|transfer|payment|gift)\b/i
+        /\bunavailable (?:in meetings|for calls|by phone)\b[^.\n]{0,60}\b(?:email|transfer|payment|gift)\b/i,
+        /\b(?:i'?m|i am|will be) (?:in|at) (?:meetings?|a meeting|conference|all-?day)\b/i,
+        /\b(?:email|whats?app|text message|texting) (?:is|works) (?:best|better)\b/i
       ]
     }
   );
@@ -530,6 +538,55 @@
     return parts.length ? parts[parts.length - 1] : '';
   }
 
+  /* Words attackers commonly glue onto a brand name to build a convincing
+     domain: "dhlparcel.example", "mydhl.example", "ups-secure.example". A
+     short brand name is only treated as glued on when the remainder is one of
+     these, which keeps "upsilon.example" from being flagged. */
+  const BRAND_GLUE_WORDS = ['secure', 'security', 'verify', 'verification', 'confirm', 'login', 'signin', 'signon', 'account', 'accounts', 'support', 'service', 'services', 'billing', 'update', 'updates', 'tracking', 'track', 'delivery', 'deliveries', 'parcel', 'parcels', 'shipping', 'team', 'help', 'helpdesk', 'invoice', 'invoices', 'online', 'payment', 'payments', 'pay', 'my', 'the', 'mail', 'email', 'notice', 'alert', 'alerts', 'info', 'portal', 'center', 'centre', 'office', 'cloud', 'web', 'app', 'id', 'auth', 'sso'];
+
+  /* Does one label of a hostname look like it is using a brand name? */
+  function labelMatchesToken(label, token) {
+    if (label === token) return true;
+    if (label.indexOf(token + '-') === 0) return true;
+
+    /* Note the -1 checks. "not found" is also -1, so without them a short
+       brand name would appear to match a numeric label such as "192". */
+    const hyphenBefore = label.lastIndexOf('-' + token);
+    if (hyphenBefore !== -1 && hyphenBefore === label.length - token.length - 1) return true;
+
+    if (new RegExp('^' + token + '[0-9]+$').test(label)) return true;
+
+    if (label.indexOf(token) === 0) {
+      const rest = label.slice(token.length);
+      if (token.length >= 5) return true;
+      if (BRAND_GLUE_WORDS.indexOf(rest) !== -1) return true;
+    }
+
+    const gluedAfter = label.lastIndexOf(token);
+    if (gluedAfter !== -1 && gluedAfter === label.length - token.length) {
+      const before = label.slice(0, gluedAfter);
+      if (token.length >= 5) return true;
+      if (BRAND_GLUE_WORDS.indexOf(before) !== -1) return true;
+    }
+
+    return false;
+  }
+
+  /* "micros0ft" and "paypa1" are the same brand name with a letter swapped for
+     a lookalike digit. Undoing the usual substitutions lets us catch those
+     character-substitution lookalikes as well as plain ones. */
+  function deSubstitute(label) {
+    return label
+      .replace(/0/g, 'o')
+      .replace(/1/g, 'l')
+      .replace(/3/g, 'e')
+      .replace(/4/g, 'a')
+      .replace(/5/g, 's')
+      .replace(/7/g, 't')
+      .replace(/8/g, 'b')
+      .replace(/9/g, 'g');
+  }
+
   /* Does a hostname appear to use a brand name, without simply containing it
      inside an unrelated word? "ups.com" and "ups-tracking.example" mention
      "ups"; "groups.example" does not. Long brand names (5+ letters, such as
@@ -540,13 +597,10 @@
     const lower = String(host || '').toLowerCase();
     if (!lower || !token) return false;
     return hostLabels(lower).some(function (label) {
-      if (label === token) return true;
-      if (label.indexOf(token + '-') === 0) return true;
-      if (label.lastIndexOf('-' + token) === label.length - token.length - 1) return true;
-      if (new RegExp('^' + token + '[0-9]+$').test(label)) return true;
-      if (token.length >= 5) {
-        if (label.indexOf(token) === 0) return true;
-        if (label.lastIndexOf(token) === label.length - token.length) return true;
+      if (labelMatchesToken(label, token)) return true;
+      if (token.length >= 4) {
+        const plain = deSubstitute(label);
+        if (plain !== label && labelMatchesToken(plain, token)) return true;
       }
       return false;
     });
@@ -647,6 +701,9 @@
       what: 'This link has a famous company name inside it, but the domain was not registered by that company. "microsoft-account-verify.example-login.test" reads like Microsoft and belongs to somebody else entirely. Note the honesty here: the tool only knows a short hand-checked list of official domains, so it reports "not a domain we recognise for that brand" rather than "definitely fake".',
       advice: 'Reach the company through its official app or by typing its address yourself. Never trust a link just because the brand name appears inside it.',
       test: function (u) {
+        /* A bare IP address has no brand name in it and its "parts" are just
+           octets, so the brand and obfuscation checks below skip it. */
+        if (u.isIp) return null;
         const tokens = Object.keys(BRAND_OFFICIAL_DOMAINS);
         for (let i = 0; i < tokens.length; i++) {
           const token = tokens[i];
@@ -704,6 +761,7 @@
       what: 'Genuine addresses are usually short and to the point. Attackers stuff extra subdomains, hyphens and numbers in to push the real domain out of sight - in a narrow browser bar or on a phone, "login.microsoft.com.secure-auth-verify.example" may look like it starts with Microsoft when it ends somewhere else entirely.',
       advice: 'Find the last two parts before the first single slash. Everything to the left of them is just a label the owner of that domain chose, and anyone can choose anything.',
       test: function (u) {
+        if (u.isIp) return null;
         const labels = hostLabels(u.hostname);
         const hyphens = (u.hostname.match(/-/g) || []).length;
         const digits = (u.hostname.match(/\d/g) || []).length;
