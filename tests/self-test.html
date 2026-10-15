@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Automated self-tests - Phishing Email Analyser</title>
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="../css/style.css">
+<style>
+  .test-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.7rem;
+    margin-bottom: 1.2rem;
+  }
+
+  .test-summary .stat b {
+    font-size: 1.6rem;
+  }
+
+  .test-list {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .test-item {
+    display: grid;
+    grid-template-columns: 74px minmax(0, 1fr);
+    gap: 0.7rem;
+    align-items: start;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid var(--line);
+    border-left-width: 4px;
+    border-radius: var(--radius-sm);
+    background: var(--surface-2);
+    font-size: 0.88rem;
+  }
+
+  .test-item.pass { border-left-color: var(--low); }
+  .test-item.fail { border-left-color: var(--critical); }
+
+  .test-verdict {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .test-item.pass .test-verdict { color: var(--low); }
+  .test-item.fail .test-verdict { color: var(--critical); }
+
+  .test-detail {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-faint);
+    font-size: 0.82rem;
+  }
+
+  .test-item.fail .test-detail {
+    color: var(--critical);
+    font-family: var(--mono);
+  }
+</style>
+</head>
+<body>
+
+<a class="skip-link" href="#results">Skip to the results</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5 4.5 5.5v5.5c0 4.8 3.2 8.9 7.5 10.5 4.3-1.6 7.5-5.7 7.5-10.5V5.5z"/>
+          <path d="M9 12.2l2.2 2.2 4.2-4.6"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>Automated self-tests</strong>
+        <small>Phishing Email Analyser</small>
+      </span>
+    </div>
+    <div class="header-actions">
+      <a class="button ghost" href="../index.html">Back to the analyser</a>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main" style="padding-top:2rem">
+  <section class="panel">
+    <div class="panel-head">
+      <span class="step-badge" aria-hidden="true">&#10003;</span>
+      <div>
+        <h1 style="font-size:1.4rem">Does the analyser really behave as described?</h1>
+        <p>
+          These are the same checks that run on the command line during development, running here in your
+          browser. They verify that the six demonstration emails produce the results the interface claims,
+          that the scoring arithmetic is correct, that the rules do not fire on ordinary messages, that the
+          engine never crashes on strange input, and that no file in this project contains a network call.
+        </p>
+      </div>
+    </div>
+    <div class="test-summary" id="summary"></div>
+    <ul class="test-list" id="results"></ul>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">
+      <span class="step-badge" aria-hidden="true">i</span>
+      <div>
+        <h2>Why these checks matter</h2>
+        <p>
+          A security tool that quietly gives wrong answers is worse than no tool at all, because people
+          trust it. These checks exist so that any change to the rulebook which starts producing false
+          alarms - or stops catching something it used to catch - fails loudly instead of going unnoticed.
+        </p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <p style="margin:0">Educational triage tool. It identifies warning signs; it cannot determine whether an email is malicious.</p>
+    <div class="footer-links">
+      <a href="../index.html">Analyser</a>
+      <a href="../index.html#privacy">Privacy</a>
+    </div>
+  </div>
+</footer>
+
+<script src="../js/patterns.js"></script>
+<script src="../js/analyzer.js"></script>
+<script src="../js/samples.js"></script>
+<script src="test-cases.js"></script>
+<script src="run-in-browser.js"></script>
+
+</body>
+</html>

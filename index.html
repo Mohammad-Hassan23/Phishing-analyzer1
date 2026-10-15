@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Phishing Email Analyser - educational triage tool</title>
+<meta name="description" content="Paste a suspicious email and see every phishing warning sign explained, with a transparent 0-100 risk score. Everything is analysed inside your own browser; nothing is uploaded anywhere.">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark light">
+
+<!--
+  PRIVACY, ENFORCED BY THE BROWSER ITSELF
+  ---------------------------------------
+  This policy is not decoration: the browser enforces it. "connect-src 'none'"
+  makes it impossible for any script on this page to open a network connection -
+  no fetch, no XMLHttpRequest, no WebSocket, no analytics beacon. "form-action
+  'none'" stops anything being posted anywhere. "base-uri 'none'" stops a
+  pasted <base> tag from redirecting the page's own requests.
+
+  Note what is deliberately NOT set here: script-src and default-src. Setting
+  those to 'self' would break the page when it is opened directly from a file
+  on a computer (file:// addresses count as an opaque origin), and being able
+  to double-click index.html is useful. The scripts themselves are plain local
+  files, and the automated tests check that no shipped file contains a network
+  call of any kind.
+-->
+<meta http-equiv="Content-Security-Policy" content="connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'">
+
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<a class="skip-link" href="#email-body">Skip to the email box</a>
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 2.5 4.5 5.5v5.5c0 4.8 3.2 8.9 7.5 10.5 4.3-1.6 7.5-5.7 7.5-10.5V5.5z"/>
+          <path d="M9 12.2l2.2 2.2 4.2-4.6"/>
+        </svg>
+      </span>
+      <span class="brand-text">
+        <strong>Phishing Email Analyser</strong>
+        <small>Educational triage tool</small>
+      </span>
+    </div>
+
+    <div class="header-actions">
+      <span class="privacy-chip">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="4" y="10" width="16" height="11" rx="2"/>
+          <path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3"/>
+        </svg>
+        <span class="privacy-chip-text">Analysis runs in your browser</span>
+        <span class="visually-hidden">Nothing you paste is uploaded anywhere.</span>
+      </span>
+      <button type="button" id="theme-toggle" class="icon-button" aria-pressed="false" aria-label="Switch to light theme">
+        <svg id="theme-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap" id="main">
+
+  <section class="hero">
+    <span class="eyebrow">Learn by inspecting real warning signs</span>
+    <h1>Paste a suspicious email. See exactly why it looks wrong.</h1>
+    <p class="hero-lede">
+      This analyser reads the text of an email and looks for the tricks phishing and
+      social-engineering attacks rely on. You get a risk score from 0 to 100, a
+      classification, and a plain-English explanation of every warning sign that
+      contributed - including how many points each one added.
+    </p>
+    <ul class="hero-points">
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6.5 9.5 17 4 11.5"/></svg>
+        <span><strong>Nothing leaves your device.</strong> The whole analysis happens inside this page, in your browser. There is no server, no database, no AI service, no account and no tracking.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6.5 9.5 17 4 11.5"/></svg>
+        <span><strong>Every point is explained.</strong> Each warning sign shows the exact words that triggered it and what it contributed to the score. No mystery number.</span>
+      </li>
+      <li>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6.5 9.5 17 4 11.5"/></svg>
+        <span><strong>Built to teach, not to judge.</strong> It identifies warning signs. It can never tell you for certain that an email is malicious, and a low score is not a promise that a message is safe.</span>
+      </li>
+    </ul>
+  </section>
+
+  <section class="panel panel-input" id="input" aria-labelledby="input-heading">
+    <div class="panel-head">
+      <span class="step-badge" aria-hidden="true">1</span>
+      <div>
+        <h2 id="input-heading">Paste the email</h2>
+        <p>Copy the whole message - subject line, sender, body and any links. Include the headers below if you can: it makes the analysis considerably stronger.</p>
+      </div>
+    </div>
+
+    <div class="field">
+      <label class="section-label" for="email-body">Email contents</label>
+      <textarea id="email-body" spellcheck="false" autocomplete="off" placeholder="Paste the suspicious email here. For example:
+
+Subject: Your account will be suspended
+
+Dear Customer, we detected unusual activity...
+http://192.0.2.45/verify
+
+You can include the Subject line, the From address, the body text and any links, all in one go."></textarea>
+    </div>
+
+    <details class="headers-block" id="headers-block">
+      <summary>Add the email headers (optional, but it makes the analysis much stronger)</summary>
+      <div class="headers-body">
+        <label class="section-label" for="email-headers">Full message headers</label>
+        <textarea id="email-headers" spellcheck="false" autocomplete="off" placeholder="From: &quot;Example Bank&quot; &lt;alerts@example-bank.test&gt;
+Reply-To: someone@else.example
+Return-Path: &lt;bounce@mailer.example&gt;
+Authentication-Results: mx.example.com; spf=fail; dkim=fail; dmarc=fail"></textarea>
+        <div class="headers-help">
+          <strong>Where to find them.</strong> Headers are the technical part of an email, and they are where the SPF, DKIM and DMARC results live.
+          <ul>
+            <li><strong>Gmail:</strong> open the message, click the three-dot menu, choose <em>Show original</em>, then copy everything.</li>
+            <li><strong>Outlook / Microsoft 365:</strong> open the message, use <em>More actions</em> or <em>File</em>, then <em>View message source</em> or <em>Message details</em>.</li>
+            <li><strong>Apple Mail:</strong> select the message, then <em>View &gt; Message &gt; Raw Source</em>.</li>
+            <li><strong>Thunderbird:</strong> select the message, then <em>More &gt; View Source</em>.</li>
+          </ul>
+          <p style="margin:0.6rem 0 0">If the headers are pasted somewhere else, the tool will simply say the authentication checks were not available - it never guesses a result.</p>
+        </div>
+      </div>
+    </details>
+
+    <div class="controls">
+      <button type="button" id="analyse-button" class="button primary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+        Analyse Email
+      </button>
+      <button type="button" id="clear-button" class="button ghost">Clear</button>
+      <div class="sample-picker">
+        <label for="sample-select">Or load a demonstration email</label>
+        <select id="sample-select">
+          <option value="">Choose an example…</option>
+        </select>
+      </div>
+    </div>
+
+    <p class="hint">Tip: press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> (<kbd>Cmd</kbd> + <kbd>Enter</kbd> on a Mac) to analyse.</p>
+    <p class="input-error" id="input-error" role="alert" hidden>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex:0 0 18px;margin-top:0.15rem"><path d="M12 3l9 16H3z"/><path d="M12 9.5v4"/><circle cx="12" cy="16.6" r="0.6"/></svg>
+      <span id="input-error-text"></span>
+    </p>
+  </section>
+
+  <section class="results" id="results" aria-live="polite" aria-label="Analysis results"></section>
+
+  <section class="panel" id="privacy" aria-labelledby="privacy-heading">
+    <div class="panel-head">
+      <span class="step-badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M7.5 10V7a4.5 4.5 0 0 1 9 0v3"/></svg>
+      </span>
+      <div>
+        <h2 id="privacy-heading">Privacy notice</h2>
+        <p>Your email is not sent anywhere. This is the most important design decision in the whole project, so here is how you can check it for yourself.</p>
+      </div>
+    </div>
+
+    <div class="trust-grid">
+      <div class="trust-item">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 20h8"/></svg>
+          Analysis happens in your browser
+        </h3>
+        <p>The rules that examine your text are ordinary JavaScript files that were downloaded when you opened this page. From then on everything runs on your own device. There is no server to send anything to, because this application has no server at all.</p>
+      </div>
+      <div class="trust-item">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5 4.5 5.5v5.5c0 4.8 3.2 8.9 7.5 10.5 4.3-1.6 7.5-5.7 7.5-10.5V5.5z"/></svg>
+          Outbound connections are blocked by the browser
+        </h3>
+        <p>This page sends a <code>Content-Security-Policy</code> instruction that forbids all outbound connections (<code>connect-src 'none'</code>). That is not a promise, it is an enforced restriction: even if somebody later added code that tried to send your email somewhere, the browser would refuse to make the connection.</p>
+      </div>
+      <div class="trust-item">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg>
+          No tracking, no storage, no accounts
+        </h3>
+        <p>There is no analytics, no telemetry, no cookies and no database. Your email text is never written to storage and disappears when you close or refresh the page. The only thing this site remembers is whether you prefer the light or the dark theme.</p>
+      </div>
+      <div class="trust-item">
+        <h3>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 9h8M8 13h5"/></svg>
+          You can verify it yourself
+        </h3>
+        <p>Open your browser's developer tools (<kbd>F12</kbd>), choose the Network tab, then paste an email and analyse it. You will see no requests being made. The <a href="tests/self-test.html">automated self-tests</a> also check that no file in this project contains a single network call.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="about" aria-labelledby="about-heading">
+    <div class="panel-head">
+      <span class="step-badge" aria-hidden="true">?</span>
+      <div>
+        <h2 id="about-heading">What this tool is, and what it is not</h2>
+        <p>Worth reading before you rely on any score, including a high one.</p>
+      </div>
+    </div>
+
+    <div class="notice is-warning">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l9 16H3z"/><path d="M12 9.5v4"/><circle cx="12" cy="16.6" r="0.6"/></svg>
+      <div>
+        <h3>It cannot tell you whether an email is malicious</h3>
+        <p>No tool can, and any tool that claims otherwise is misleading you. This analyser finds <em>warning signs</em> in text. It cannot open attachments, cannot check whether a domain was registered last week, and cannot know whether a message is genuine.</p>
+        <ul>
+          <li><strong>Never click a suspicious link or open an attachment to test it.</strong> That is exactly what the attacker is hoping for.</li>
+          <li><strong>A low score is not a clean bill of health.</strong> A carefully written attack can trip none of these checks.</li>
+          <li><strong>A high score is not proof of guilt.</strong> Real marketing emails use urgent language, and real invoices get flagged too.</li>
+          <li><strong>Verify independently.</strong> Reach the organisation through its official website or app, or through a phone number you already hold - never one taken from the email.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="notice" style="margin-top:1rem">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><circle cx="12" cy="7.8" r="0.7"/></svg>
+      <div>
+        <h3>How the score is calculated</h3>
+        <p>Each warning sign carries a weight: how strongly that one sign, on its own, suggests phishing. The weights are combined as independent pieces of evidence rather than simply added together.</p>
+        <p class="formula" style="margin-top:0.6rem">score = 100 × (1 − (1−w₁) × (1−w₂) × … × (1−wₙ))</p>
+        <p style="margin-top:0.6rem">So one 25-point warning sign gives a score of 25, three of them give 58 and six give 82 - while twenty weak signals can never reach a false 100. Every report shows each warning sign's own contribution to the total, measured by recalculating the score with that sign removed. Because the signs overlap slightly, those contributions do not add up to exactly the total, and the report says so.</p>
+        <p style="margin-top:0.6rem">Two further rules guard against obviously wrong answers. If two or more critical warning signs are present the result is raised to High Risk, and if one is present it is raised to at least Suspicious. Whenever that happens, the report explains that it happened and what the raw score was.</p>
+      </div>
+    </div>
+  </section>
+
+
+
+
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <p style="margin:0">
+      <strong>Educational triage tool.</strong> It identifies warning signs; it cannot determine whether an email is malicious.
+      Never click suspicious links or open attachments to test them.
+    </p>
+    <div class="footer-links">
+      <a href="#privacy">Privacy</a>
+      <a href="#about">Limitations</a>
+      <a href="tests/self-test.html">Automated self-tests</a>
+    </div>
+  </div>
+</footer>
+
+<!-- Plain local scripts, loaded in dependency order. No modules, no bundler,
+     no package manager: this is the whole application. -->
+<script src="js/patterns.js"></script>
+<script src="js/analyzer.js"></script>
+<script src="js/samples.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
