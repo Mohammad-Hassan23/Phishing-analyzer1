@@ -1,0 +1,11 @@
+# Sandbox / agent helper files (not part of the website)
+.cline-home/
+*.log
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+# Editor clutter
+.vscode/
+.idea/
